@@ -8,10 +8,9 @@ import os
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from groq import Groq
-import os
 from dotenv import load_dotenv
-from groq import Groq
 
+# ---------------- LOAD ENV ----------------
 load_dotenv()
 
 # ---------------- PAGE CONFIG ----------------
@@ -35,22 +34,29 @@ client = Groq(
 
 # ---------------- CLEAN TEXT ----------------
 def clean_text(text):
+
     text = re.sub(r"\(cid:\d+\)", " ", text)
     text = re.sub(r"\s+", " ", text)
+
     return text.strip()
 
 # ---------------- EXTRACT TEXT ----------------
 def extract_text(file):
+
     text = ""
 
     if file.name.endswith(".pdf"):
+
         with pdfplumber.open(file) as pdf:
+
             text = " ".join(
                 [page.extract_text() or "" for page in pdf.pages]
             )
 
     elif file.name.endswith(".docx"):
+
         doc = Document(file)
+
         text = " ".join(
             [para.text for para in doc.paragraphs]
         )
@@ -85,7 +91,10 @@ def keyword_score(resume, job):
     matched = job_keywords & resume_keywords
     missing = job_keywords - resume_keywords
 
-    score = len(matched) / len(job_keywords) if job_keywords else 0
+    score = (
+        len(matched) / len(job_keywords)
+        if job_keywords else 0
+    )
 
     return score, matched, missing
 
@@ -131,9 +140,15 @@ def get_score(resume, job):
         [embeddings[1]]
     )[0][0]
 
-    keyword, matched, missing = keyword_score(resume, job)
+    keyword, matched, missing = keyword_score(
+        resume,
+        job
+    )
 
-    skills = skills_score(resume, job)
+    skills = skills_score(
+        resume,
+        job
+    )
 
     final_score = (
         0.4 * keyword +
@@ -153,19 +168,32 @@ def get_score(resume, job):
 # ---------------- GROQ AI CALL ----------------
 def call_llm(prompt):
 
-    completion = client.chat.completions.create(
-        model="llama3-8b-8192",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.4,
-        max_tokens=2000
-    )
+    try:
 
-    return completion.choices[0].message.content
+        # Prevent token overflow
+        prompt = prompt[:6000]
+
+        completion = client.chat.completions.create(
+
+            model="llama3-8b-8192",
+
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+
+            temperature=0.4,
+
+            max_tokens=1000
+        )
+
+        return completion.choices[0].message.content
+
+    except Exception as e:
+
+        return f"Error generating AI response: {str(e)}"
 
 # ---------------- IMPROVE RESUME ----------------
 def improve_resume(resume, job):
@@ -190,10 +218,10 @@ RETURN:
 2. Improvements Summary
 
 JOB DESCRIPTION:
-{job}
+{job[:2500]}
 
 RESUME:
-{resume}
+{resume[:2500]}
 """
 
     return call_llm(prompt)
@@ -204,6 +232,7 @@ def save_docx(text):
     doc = Document()
 
     for line in text.split("\n"):
+
         doc.add_paragraph(line)
 
     path = "improved_resume.docx"
@@ -217,7 +246,10 @@ def save_pdf(text):
 
     path = "improved_resume.pdf"
 
-    c = canvas.Canvas(path, pagesize=letter)
+    c = canvas.Canvas(
+        path,
+        pagesize=letter
+    )
 
     y = 760
 
@@ -230,7 +262,9 @@ def save_pdf(text):
         y -= 15
 
         if y < 40:
+
             c.showPage()
+
             y = 760
 
     c.save()
@@ -243,6 +277,7 @@ st.title("🤖 Recruiter-Level ATS Resume Analyzer")
 st.markdown(
     """
 Upload your resume and paste a job description to:
+
 - Analyze ATS match score
 - Detect missing keywords
 - Improve resume using AI
@@ -332,8 +367,9 @@ if uploaded_file and job_description:
 
         pdf_path = save_pdf(improved_resume)
 
-        # ---------------- DOWNLOAD BUTTONS ----------------
+        # ---------------- DOWNLOAD DOCX ----------------
         with open(docx_path, "rb") as file:
+
             st.download_button(
                 label="⬇ Download DOCX",
                 data=file,
@@ -341,7 +377,9 @@ if uploaded_file and job_description:
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
 
+        # ---------------- DOWNLOAD PDF ----------------
         with open(pdf_path, "rb") as file:
+
             st.download_button(
                 label="⬇ Download PDF",
                 data=file,
