@@ -1,0 +1,9 @@
+streamlit
+pdfplumber
+python-docx
+sentence-transformers
+scikit-learn
+reportlab
+groq
+python-dotenv
+torch
