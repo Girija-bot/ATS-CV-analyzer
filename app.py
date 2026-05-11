@@ -91,10 +91,7 @@ def keyword_score(resume, job):
     matched = job_keywords & resume_keywords
     missing = job_keywords - resume_keywords
 
-    score = (
-        len(matched) / len(job_keywords)
-        if job_keywords else 0
-    )
+    score = len(matched) / len(job_keywords) if job_keywords else 0
 
     return score, matched, missing
 
@@ -140,15 +137,9 @@ def get_score(resume, job):
         [embeddings[1]]
     )[0][0]
 
-    keyword, matched, missing = keyword_score(
-        resume,
-        job
-    )
+    keyword, matched, missing = keyword_score(resume, job)
 
-    skills = skills_score(
-        resume,
-        job
-    )
+    skills = skills_score(resume, job)
 
     final_score = (
         0.4 * keyword +
@@ -170,23 +161,16 @@ def call_llm(prompt):
 
     try:
 
-        # Prevent token overflow
-        prompt = prompt[:6000]
-
         completion = client.chat.completions.create(
-
-            model="llama3-8b-8192",
-
+            model="llama-3.1-8b-instant",
             messages=[
                 {
                     "role": "user",
                     "content": prompt
                 }
             ],
-
             temperature=0.4,
-
-            max_tokens=1000
+            max_tokens=1500
         )
 
         return completion.choices[0].message.content
@@ -218,10 +202,10 @@ RETURN:
 2. Improvements Summary
 
 JOB DESCRIPTION:
-{job[:2500]}
+{job}
 
 RESUME:
-{resume[:2500]}
+{resume}
 """
 
     return call_llm(prompt)
@@ -232,7 +216,6 @@ def save_docx(text):
     doc = Document()
 
     for line in text.split("\n"):
-
         doc.add_paragraph(line)
 
     path = "improved_resume.docx"
@@ -246,10 +229,7 @@ def save_pdf(text):
 
     path = "improved_resume.pdf"
 
-    c = canvas.Canvas(
-        path,
-        pagesize=letter
-    )
+    c = canvas.Canvas(path, pagesize=letter)
 
     y = 760
 
@@ -262,9 +242,7 @@ def save_pdf(text):
         y -= 15
 
         if y < 40:
-
             c.showPage()
-
             y = 760
 
     c.save()
@@ -274,16 +252,14 @@ def save_pdf(text):
 # ---------------- UI ----------------
 st.title("🤖 Recruiter-Level ATS Resume Analyzer")
 
-st.markdown(
-    """
+st.markdown("""
 Upload your resume and paste a job description to:
 
 - Analyze ATS match score
 - Detect missing keywords
 - Improve resume using AI
 - Download improved DOCX/PDF
-"""
-)
+""")
 
 uploaded_file = st.file_uploader(
     "📄 Upload Resume",
@@ -367,7 +343,7 @@ if uploaded_file and job_description:
 
         pdf_path = save_pdf(improved_resume)
 
-        # ---------------- DOWNLOAD DOCX ----------------
+        # ---------------- DOWNLOAD BUTTONS ----------------
         with open(docx_path, "rb") as file:
 
             st.download_button(
@@ -377,7 +353,6 @@ if uploaded_file and job_description:
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
 
-        # ---------------- DOWNLOAD PDF ----------------
         with open(pdf_path, "rb") as file:
 
             st.download_button(
